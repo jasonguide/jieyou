@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>解忧信箱 · 管理后台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+        body { font-family: 'Noto Serif SC', serif; background: #fdf6e3; min-height: 100vh; }
+        .card { background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); border: 1px solid rgba(0,0,0,0.06); border-radius: 1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        .btn-primary { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); color: #fff; font-weight: 600; border-radius: 9999px; padding: 8px 20px; transition: all 0.2s; cursor: pointer; border: none; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(253,160,133,0.4); }
+        .btn-sm { padding: 4px 14px; font-size: 0.875rem; }
+        .tab { padding: 8px 20px; border-radius: 9999px; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; border: 1px solid transparent; }
+        .tab.active { background: linear-gradient(135deg, #f6d365, #fda085); color: #fff; }
+        .tab:not(.active):hover { border-color: #fda085; color: #fda085; }
+        .badge { padding: 2px 10px; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-used { background: #e2e3e5; color: #383d41; }
+        .badge-expired { background: #f8d7da; color: #721c24; }
+        .badge-pending { background: #fff3cd; color: #856404; }
+        .badge-approved { background: #d4edda; color: #155724; }
+        .badge-rejected { background: #f8d7da; color: #721c24; }
+        .badge-answered { background: #cce5ff; color: #004085; }
+        .badge-seed { background: #e2e3e5; color: #383d41; }
+        .badge-user { background: #fff3cd; color: #856404; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 12px; font-size: 0.8rem; color: #999; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #eee; }
+        td { padding: 10px 12px; font-size: 0.9rem; border-bottom: 1px solid #f5f5f5; }
+        tr:hover td { background: #fffef5; }
+        input, select, textarea { border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 8px 14px; font-size: 0.9rem; outline: none; width: 100%; box-sizing: border-box; font-family: inherit; }
+        input:focus, select:focus, textarea:focus { border-color: #fda085; box-shadow: 0 0 0 3px rgba(253,160,133,0.1); }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: #fffef5; border-radius: 1rem; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+        .toast { position: fixed; top: 20px; right: 20px; z-index: 200; padding: 12px 20px; border-radius: 0.5rem; color: #fff; font-weight: 600; font-size: 0.9rem; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .review-card { background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.06); border-radius: 1rem; padding: 20px; transition: all 0.2s; }
+        .review-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.06); }
+        .btn-approve { background: #48bb78; color: #fff; font-weight: 600; border-radius: 9999px; padding: 6px 16px; transition: all 0.2s; cursor: pointer; border: none; font-size: 0.85rem; }
+        .btn-approve:hover { background: #38a169; }
+        .btn-reject { background: #f56565; color: #fff; font-weight: 600; border-radius: 9999px; padding: 6px 16px; transition: all 0.2s; cursor: pointer; border: none; font-size: 0.85rem; }
+        .btn-reject:hover { background: #e53e3e; }
+    </style>
+</head>
+<body class="p-4">
+
+    <!-- 安全码验证弹窗 -->
+    <div id="authOverlay" class="fixed inset-0 bg-[#fdf6e3] z-[999] flex items-center justify-center">
+        <div class="text-center max-w-sm w-full px-6">
+            <div class="text-5xl mb-4">🔐</div>
+            <h2 class="text-xl font-bold text-gray-700 mb-2">管理后台</h2>
+            <p class="text-gray-400 text-sm mb-6">请输入安全码以访问管理后台</p>
+            <input
+                type="password"
+                id="authPassword"
+                placeholder="安全码"
+                onkeydown="if(event.key==='Enter') adminLogin()"
+                class="w-full px-6 py-3 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-300 text-center tracking-widest text-gray-700 bg-white/80 mb-4"
+            >
+            <button onclick="adminLogin()" class="btn-primary w-full py-3 text-base">验证进入</button>
+            <p id="authError" class="text-red-400 text-xs mt-4 hidden"></p>
+        </div>
+    </div>
+
+    <div id="mainContent" class="hidden">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-700">💌 解忧信箱 · 管理后台</h1>
+                <p class="text-sm text-gray-400 mt-1">管理信件模板、生成兑换码、审核问答、查看数据</p>
+            </div>
+            <a href="/" class="text-sm text-gray-400 hover:text-gray-600 transition">← 返回首页</a>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex gap-2 mb-6 flex-wrap">
+            <button class="tab active" onclick="switchTab('codes')">🎫 兑换码管理</button>
+            <button class="tab" onclick="switchTab('letters')">💌 信件模板</button>
+            <button class="tab" onclick="switchTab('review')">🔍 问答审核</button>
+            <button class="tab" onclick="switchTab('stats')">📊 数据概览</button>
+        </div>
+
+        <!-- ===== Tab: 兑换码管理 ===== -->
+        <div id="tab-codes">
+            <!-- 生成兑换码 -->
+            <div class="card p-6 mb-6">
+                <h2 class="font-bold text-gray-700 mb-4">生成兑换码</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                        <label class="text-xs text-gray-500 mb-1 block">选择信件模板</label>
+                        <select id="genLetter" onchange="onLetterSelect()"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 mb-1 block">前缀</label>
+                        <input id="genPrefix" value="XJ" maxlength="4">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 mb-1 block">生成数量</label>
+                        <input id="genQty" type="number" value="10" min="1" max="500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-500 mb-1 block">批次号（可选）</label>
+                        <input id="genBatch" placeholder="留空自动生成">
+                    </div>
+                </div>
+                <button class="btn-primary mt-4" onclick="generateCodes()">✨ 生成兑换码</button>
+                <div id="genResult" class="mt-4 hidden"></div>
+            </div>
+
+            <!-- 兑换码列表 -->
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <h2 class="font-bold text-gray-700">兑换码列表</h2>
+                    <div class="flex gap-2 flex-wrap">
+                        <select id="filterStatus" onchange="loadCodes()" class="w-auto!">
+                            <option value="">全部状态</option>
+                            <option value="active">未使用</option>
+                            <option value="used">已使用</option>
+                            <option value="expired">已过期</option>
+                        </select>
+                        <input id="filterBatch" placeholder="批次号筛选" onchange="loadCodes()" class="w-36!">
+                        <button class="btn-primary btn-sm" onclick="loadCodes()">刷新</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table>
+                        <thead>
+                            <tr><th>兑换码</th><th>信件模板</th><th>状态</th><th>批次</th><th>创建时间</th><th>使用时间</th><th>操作</th></tr>
+                        </thead>
+                        <tbody id="codesTable"></tbody>
+                    </table>
+                </div>
+                <div id="codesPagination" class="flex items-center justify-between mt-4 text-sm text-gray-500"></div>
+            </div>
+        </div>
+
+        <!-- ===== Tab: 信件模板 ===== -->
+        <div id="tab-letters" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+                <span class="text-gray-500 text-sm" id="letterCount"></span>
+                <button class="btn-primary btn-sm" onclick="showLetterModal()">+ 新建信件</button>
+            </div>
+            <div id="lettersList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+
+        <!-- ===== Tab: 问答审核 ===== -->
+        <div id="tab-review" class="hidden">
+            <!-- 审核统计 -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="reviewStatsCards">
+                <div class="card p-5 text-center">
+                    <div class="text-3xl font-bold text-yellow-500" id="pendingQCount">-</div>
+                    <div class="text-xs text-gray-400 mt-1">待审核问题</div>
+                </div>
+                <div class="card p-5 text-center">
+                    <div class="text-3xl font-bold text-green-500" id="approvedQCount">-</div>
+                    <div class="text-xs text-gray-400 mt-1">已通过问题</div>
+                </div>
+                <div class="card p-5 text-center">
+                    <div class="text-3xl font-bold text-yellow-500" id="pendingACount">-</div>
+                    <div class="text-xs text-gray-400 mt-1">待审核回答</div>
+                </div>
+                <div class="card p-5 text-center">
+                    <div class="text-3xl font-bold text-green-500" id="approvedACount">-</div>
+                    <div class="text-xs text-gray-400 mt-1">已通过回答</div>
+                </div>
+            </div>
+
+            <!-- 待审核问题 -->
+            <div class="card p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-gray-700">💭 待审核问题</h2>
+                    <div class="flex gap-2">
+                        <select id="filterQStatus" onchange="loadReviewQuestions()" class="w-auto!">
+                            <option value="pending">待审核</option>
+                            <option value="">全部</option>
+                            <option value="approved">已通过</option>
+                            <option value="rejected">已拒绝</option>
+                            <option value="answered">已回答</option>
+                        </select>
+                        <select id="filterQSource" onchange="loadReviewQuestions()" class="w-auto!">
+                            <option value="">全部来源</option>
+                            <option value="user">用户提问</option>
+                            <option value="seed">种子问题</option>
+                        </select>
+                        <button class="btn-primary btn-sm" onclick="loadReviewQuestions()">刷新</button>
+                    </div>
+                </div>
+                <div id="questionsList" class="space-y-4"></div>
+            </div>
+
+            <!-- 待审核回答 -->
+            <div class="card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="font-bold text-gray-700">✉️ 待审核回答</h2>
+                    <div class="flex gap-2">
+                        <select id="filterAStatus" onchange="loadReviewAnswers()" class="w-auto!">
+                            <option value="pending">待审核</option>
+                            <option value="">全部</option>
+                            <option value="approved">已通过</option>
+                            <option value="rejected">已拒绝</option>
+                        </select>
+                        <button class="btn-primary btn-sm" onclick="loadReviewAnswers()">刷新</button>
+                    </div>
+                </div>
+                <div id="answersList" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- ===== Tab: 数据概览 ===== -->
+        <div id="tab-stats" class="hidden">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="statsCards"></div>
+            <div class="card p-6" id="statsDetail"></div>
+        </div>
+    </div>
+
+    <!-- 信件编辑弹窗 -->
+    <div id="letterModal" class="modal-overlay hidden">
+        <div class="modal">
+            <h2 class="font-bold text-lg text-gray-700 mb-4" id="modalTitle">新建信件模板</h2>
+            <input type="hidden" id="editLetterId">
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs text-gray-500 mb-1 block">类型</label>
+                    <select id="editType">
+                        <option value="healing">治愈解忧</option>
+                        <option value="night">晚安陪伴</option>
+                        <option value="birthday">生日祝福</option>
+                        <option value="encouragement">加油鼓励</option>
+                        <option value="love">暖心情书</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500 mb-1 block">标题</label>
+                    <input id="editTitle" placeholder="给这封信起个名字">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500 mb-1 block">正文（换行会自动保留）</label>
+                    <textarea id="editContent" rows="6" placeholder="写下一封温暖的信..."></textarea>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-500 mb-1 block">落款</label>
+                    <input id="editSignature" value="—— 你的解忧人">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6 justify-end">
+                <button class="px-5 py-2 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition" onclick="hideLetterModal()">取消</button>
+                <button class="btn-primary" onclick="saveLetter()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    </div><!-- /mainContent -->
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+<script>
+let currentTab = 'codes';
+let adminToken = '';
+const SITE_URL = 'https://jy.zoutao.me';
+
+// ===== 管理员登录 =====
+window.onload = () => {
+    setTimeout(() => document.getElementById('authPassword').focus(), 300);
+};
+
+async function adminLogin() {
+    const password = document.getElementById('authPassword').value.trim();
+    if (!password) {
+        document.getElementById('authError').textContent = '请输入安全码';
+        document.getElementById('authError').classList.remove('hidden');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            adminToken = data.token;
+            document.getElementById('authOverlay').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            // 加载数据
+            loadLettersForSelect();
+            loadCodes();
+            loadLetterCount();
+        } else {
+            document.getElementById('authError').textContent = '安全码错误，请重试';
+            document.getElementById('authError').classList.remove('hidden');
+            document.getElementById('authPassword').value = '';
+            document.getElementById('authPassword').focus();
+        }
+    } catch (e) {
+        document.getElementById('authError').textContent = '网络错误，请重试';
+        document.getElementById('authError').classList.remove('hidden');
+    }
+}
+
+// 带认证的 fetch 封装
+async function adminFetch(url, options = {}) {
+    if (!options.headers) options.headers = {};
+    if (adminToken) {
+        options.headers['Authorization'] = `Bearer ${adminToken}`;
+    }
+    const res = await fetch(url, options);
+    if (res.status === 401) {
+        // token 失效，重新验证
+        adminToken = '';
+        document.getElementById('authOverlay').classList.remove('hidden');
+        document.getElementById('mainContent').classList.add('hidden');
+        document.getElementById('authPassword').value = '';
+        document.getElementById('authError').textContent = '登录已过期，请重新输入安全码';
+        document.getElementById('authError').classList.remove('hidden');
+        setTimeout(() => document.getElementById('authPassword').focus(), 300);
+        throw new Error('Unauthorized');
+    }
+    return res;
+}
+
+// ===== Tab switching =====
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.tab[onclick="switchTab('${tab}')"]`).classList.add('active');
+    document.querySelectorAll('[id^="tab-"]').forEach(d => d.classList.add('hidden'));
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
+    if (tab === 'codes') loadCodes();
+    if (tab === 'letters') loadLetters();
+    if (tab === 'review') { loadReviewQuestions(); loadReviewAnswers(); loadReviewStats(); }
+    if (tab === 'stats') loadStats();
+}
+
+// ===== Toast =====
+function showToast(msg, color = '#48bb78') {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.background = color;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+// ===== Letter Select =====
+async function loadLettersForSelect() {
+    const res = await adminFetch('/api/admin/letters');
+    const letters = await res.json();
+    const sel = document.getElementById('genLetter');
+    sel.innerHTML = letters.map(l =>
+        `<option value="${l.id}" data-type="${l.type}">${l.title || l.type} (ID:${l.id})</option>`
+    ).join('');
+    onLetterSelect();
+}
+
+function onLetterSelect() {
+    const sel = document.getElementById('genLetter');
+    const opt = sel.selectedOptions[0];
+    if (!opt) return;
+    const type = opt.dataset.type;
+    const prefixMap = { healing: 'XJ', night: 'WA', birthday: 'SR', encouragement: 'GL', love: 'QS' };
+    document.getElementById('genPrefix').value = prefixMap[type] || type.substring(0, 2).toUpperCase();
+}
+
+// ===== Codes =====
+async function loadCodes(page = 1) {
+    const status = document.getElementById('filterStatus').value;
+    const batch = document.getElementById('filterBatch').value.trim();
+    const params = new URLSearchParams({ page, page_size: 30 });
+    if (status) params.set('status', status);
+    if (batch) params.set('batch_id', batch);
+
+    const res = await adminFetch(`/api/admin/codes?${params}`);
+    const data = await res.json();
+    const tbody = document.getElementById('codesTable');
+
+    if (data.items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center text-gray-400 py-8">暂无兑换码</td></tr>`;
+    } else {
+        tbody.innerHTML = data.items.map(c => `
+            <tr>
+                <td>
+                    <span class="font-mono cursor-pointer hover:text-orange-400 transition" onclick="copyToClipboard('${c.code}')" title="点击复制兑换码">${c.code}</span>
+                    <span class="inline-flex items-center justify-center w-5 h-5 ml-1 rounded cursor-pointer text-gray-400 hover:text-green-500 hover:bg-green-50 transition" onclick="copyShipText('${c.code}')" title="复制发货文案">📦</span>
+                </td>
+                <td>${c.letter_title || '—'}</td>
+                <td><span class="badge badge-${c.status}">${{active:'未使用',used:'已使用',expired:'已过期'}[c.status]}</span></td>
+                <td class="text-xs text-gray-400">${c.batch_id || '—'}</td>
+                <td class="text-xs text-gray-400">${(c.created_at||'').substring(0,16)}</td>
+                <td class="text-xs text-gray-400">${(c.used_at||'').substring(0,16) || '—'}</td>
+                <td>
+                    ${c.status !== 'used' ? `<button class="text-red-400 text-xs hover:text-red-600" onclick="deleteCode(${c.id})">删除</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    const totalPages = Math.ceil(data.total / data.page_size);
+    document.getElementById('codesPagination').innerHTML = `
+        <span>共 ${data.total} 条</span>
+        <div class="flex gap-2">
+            <button class="px-3 py-1 rounded-full border text-xs ${page <= 1 ? 'opacity-30' : 'hover:border-orange-300'}" ${page <= 1 ? 'disabled' : ''} onclick="loadCodes(${page-1})">上一页</button>
+            <span class="px-2 py-1 text-xs">${page} / ${totalPages || 1}</span>
+            <button class="px-3 py-1 rounded-full border text-xs ${page >= totalPages ? 'opacity-30' : 'hover:border-orange-300'}" ${page >= totalPages ? 'disabled' : ''} onclick="loadCodes(${page+1})">下一页</button>
+        </div>
+    `;
+}
+
+async function generateCodes() {
+    const letterId = parseInt(document.getElementById('genLetter').value);
+    const prefix = document.getElementById('genPrefix').value.trim() || 'XJ';
+    const quantity = parseInt(document.getElementById('genQty').value) || 10;
+    const batchId = document.getElementById('genBatch').value.trim() || undefined;
+
+    const res = await adminFetch('/api/admin/codes/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ letter_id: letterId, prefix, quantity, batch_id: batchId })
+    });
+    const data = await res.json();
+
+    const resultDiv = document.getElementById('genResult');
+    resultDiv.classList.remove('hidden');
+    resultDiv.innerHTML = `
+        <div class="bg-green-50 border border-green-200 rounded-xl p-4">
+            <p class="text-green-700 font-bold mb-2">✓ 成功生成 ${data.quantity} 个兑换码（批次: ${data.batch_id}）</p>
+            <textarea readonly class="w-full! h-32! font-mono text-xs bg-white border rounded-lg p-2 mt-2" onclick="this.select()">${data.codes.join('\n')}</textarea>
+            <button class="btn-primary btn-sm mt-2" onclick="copyToClipboard('${data.codes.join("\\n")}')">📋 一键复制全部</button>
+        </div>
+    `;
+    loadCodes();
+}
+
+async function deleteCode(id) {
+    if (!confirm('确定删除这个兑换码？')) return;
+    const res = await adminFetch(`/api/admin/codes/${id}`, { method: 'DELETE' });
+    if (res.ok) { showToast('已删除'); loadCodes(); }
+    else { const d = await res.json(); showToast(d.detail, '#f56565'); }
+}
+
+// ===== Letters =====
+async function loadLetters() {
+    const res = await adminFetch('/api/admin/letters');
+    const letters = await res.json();
+    const typeLabels = { healing: '治愈解忧', night: '晚安陪伴', birthday: '生日祝福', encouragement: '加油鼓励', love: '暖心情书', other: '其他' };
+    document.getElementById('lettersList').innerHTML = letters.map(l => `
+        <div class="card p-5 flex flex-col justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="badge badge-active">${typeLabels[l.type] || l.type}</span>
+                    <span class="text-sm text-gray-400">ID:${l.id}</span>
+                </div>
+                <h3 class="font-bold text-gray-700 mb-2">${l.title || '无标题'}</h3>
+                <p class="text-sm text-gray-500 leading-relaxed line-clamp-3 whitespace-pre-line">${l.content}</p>
+                <p class="text-xs text-gray-400 mt-2">${l.signature}</p>
+            </div>
+            <div class="flex gap-2 mt-4 pt-3 border-t border-gray-100">
+                <button class="text-xs text-orange-400 hover:text-orange-600" onclick="editLetter(${l.id})">编辑</button>
+                <button class="text-xs text-red-400 hover:text-red-600" onclick="deleteLetter(${l.id})">删除</button>
+            </div>
+        </div>
+    `).join('');
+    loadLetterCount();
+}
+
+async function loadLetterCount() {
+    const res = await adminFetch('/api/admin/letters');
+    const letters = await res.json();
+    document.getElementById('letterCount').textContent = `共 ${letters.length} 个信件模板`;
+}
+
+function showLetterModal(letter = null) {
+    document.getElementById('letterModal').classList.remove('hidden');
+    if (letter) {
+        document.getElementById('modalTitle').textContent = '编辑信件模板';
+        document.getElementById('editLetterId').value = letter.id;
+        document.getElementById('editType').value = letter.type;
+        document.getElementById('editTitle').value = letter.title || '';
+        document.getElementById('editContent').value = letter.content;
+        document.getElementById('editSignature').value = letter.signature;
+    } else {
+        document.getElementById('modalTitle').textContent = '新建信件模板';
+        document.getElementById('editLetterId').value = '';
+        document.getElementById('editType').value = 'healing';
+        document.getElementById('editTitle').value = '';
+        document.getElementById('editContent').value = '';
+        document.getElementById('editSignature').value = '—— 你的解忧人';
+    }
+}
+
+function hideLetterModal() { document.getElementById('letterModal').classList.add('hidden'); }
+
+async function editLetter(id) {
+    const res = await adminFetch('/api/admin/letters');
+    const letters = await res.json();
+    const letter = letters.find(l => l.id === id);
+    if (letter) showLetterModal(letter);
+}
+
+async function saveLetter() {
+    const id = document.getElementById('editLetterId').value;
+    const body = {
+        type: document.getElementById('editType').value,
+        title: document.getElementById('editTitle').value.trim(),
+        content: document.getElementById('editContent').value.trim(),
+        signature: document.getElementById('editSignature').value.trim(),
+    };
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/admin/letters/${id}` : '/api/admin/letters';
+
+    const res = await adminFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (res.ok) {
+        showToast(id ? '信件已更新' : '信件已创建');
+        hideLetterModal();
+        loadLetters();
+        loadLettersForSelect();
+    } else {
+        const d = await res.json();
+        showToast(d.detail || '操作失败', '#f56565');
+    }
+}
+
+async function deleteLetter(id) {
+    if (!confirm('确定删除这个信件模板？')) return;
+    const res = await adminFetch(`/api/admin/letters/${id}`, { method: 'DELETE' });
+    if (res.ok) { showToast('已删除'); loadLetters(); loadLettersForSelect(); }
+    else { const d = await res.json(); showToast(d.detail, '#f56565'); }
+}
+
+// ===== 问答审核 =====
+async function loadReviewStats() {
+    const res = await adminFetch('/api/admin/stats');
+    const s = await res.json();
+    document.getElementById('pendingQCount').textContent = s.pending_questions;
+    document.getElementById('approvedQCount').textContent = s.approved_questions;
+    document.getElementById('pendingACount').textContent = s.pending_answers;
+    document.getElementById('approvedACount').textContent = s.total_answers - s.pending_answers;
+}
+
+async function loadReviewQuestions(page = 1) {
+    const status = document.getElementById('filterQStatus').value;
+    const source = document.getElementById('filterQSource').value;
+    const params = new URLSearchParams({ page, page_size: 20 });
+    if (status) params.set('status', status);
+    if (source) params.set('source', source);
+
+    const res = await adminFetch(`/api/admin/questions?${params}`);
+    const data = await res.json();
+    const container = document.getElementById('questionsList');
+
+    const statusLabels = { pending: '待审核', approved: '已通过', rejected: '已拒绝', answered: '已回答', expired: '已过期' };
+    const sourceLabels = { seed: '种子', user: '用户' };
+
+    if (data.items.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 py-8">暂无问题</div>';
+    } else {
+        container.innerHTML = data.items.map(q => `
+            <div class="review-card">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="badge badge-${q.status}">${statusLabels[q.status] || q.status}</span>
+                    <span class="badge badge-${q.source}">${sourceLabels[q.source] || q.source}</span>
+                    <span class="text-xs text-gray-400">${q.asker_nickname} · ${q.asker_age}岁</span>
+                    <span class="text-xs text-gray-300 ml-auto">${(q.created_at||'').substring(0,16)}</span>
+                </div>
+                <p class="text-gray-700 leading-relaxed mb-3">${escapeHtml(q.content)}</p>
+                <div class="flex items-center gap-2">
+                    ${q.status === 'pending' ? `
+                        <button class="btn-approve" onclick="reviewQuestion(${q.id}, 'approve')">✓ 通过</button>
+                        <button class="btn-reject" onclick="reviewQuestion(${q.id}, 'reject')">✗ 拒绝</button>
+                    ` : ''}
+                    <span class="text-xs text-gray-300 ml-auto">ID:${q.id} | 提问码:${q.asker_code}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+async function reviewQuestion(id, action) {
+    const res = await adminFetch(`/api/admin/questions/${id}/review`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+    });
+    if (res.ok) {
+        showToast(action === 'approve' ? '问题已通过' : '问题已拒绝');
+        loadReviewQuestions();
+        loadReviewStats();
+    } else {
+        const d = await res.json();
+        showToast(d.detail || '操作失败', '#f56565');
+    }
+}
+
+async function loadReviewAnswers(page = 1) {
+    const status = document.getElementById('filterAStatus').value;
+    const params = new URLSearchParams({ page, page_size: 20 });
+    if (status) params.set('status', status);
+
+    const res = await adminFetch(`/api/admin/answers?${params}`);
+    const data = await res.json();
+    const container = document.getElementById('answersList');
+
+    const statusLabels = { pending: '待审核', approved: '已通过', rejected: '已拒绝' };
+
+    if (data.items.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-400 py-8">暂无回答</div>';
+    } else {
+        container.innerHTML = data.items.map(a => `
+            <div class="review-card">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="badge badge-${a.status}">${statusLabels[a.status] || a.status}</span>
+                    <span class="text-xs text-gray-400">${a.answerer_nickname} · ${a.answerer_age}岁 → 回答了 ${a.question_content ? '「' + escapeHtml(a.question_content.substring(0, 30)) + (a.question_content.length > 30 ? '...' : '') + '」' : '问题#' + a.question_id}</span>
+                    <span class="text-xs text-gray-300 ml-auto">${(a.created_at||'').substring(0,16)}</span>
+                </div>
+                <p class="text-gray-700 leading-relaxed mb-3">${escapeHtml(a.content)}</p>
+                <div class="flex items-center gap-2">
+                    ${a.status === 'pending' ? `
+                        <button class="btn-approve" onclick="reviewAnswer(${a.id}, 'approve')">✓ 通过并发送</button>
+                        <button class="btn-reject" onclick="reviewAnswer(${a.id}, 'reject')">✗ 拒绝</button>
+                    ` : ''}
+                    <span class="text-xs text-gray-300 ml-auto">ID:${a.id} | 问题ID:${a.question_id} | 回答码:${a.answerer_code}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+async function reviewAnswer(id, action) {
+    const res = await adminFetch(`/api/admin/answers/${id}/review`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+    });
+    if (res.ok) {
+        showToast(action === 'approve' ? '回答已通过，将发送给提问者' : '回答已拒绝');
+        loadReviewAnswers();
+        loadReviewStats();
+    } else {
+        const d = await res.json();
+        showToast(d.detail || '操作失败', '#f56565');
+    }
+}
+
+// ===== Stats =====
+async function loadStats() {
+    const res = await adminFetch('/api/admin/stats');
+    const s = await res.json();
+    document.getElementById('statsCards').innerHTML = `
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-gray-700">${s.total_codes}</div><div class="text-xs text-gray-400 mt-1">总兑换码</div></div>
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-green-500">${s.active_codes}</div><div class="text-xs text-gray-400 mt-1">未使用</div></div>
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-gray-400">${s.used_codes}</div><div class="text-xs text-gray-400 mt-1">已使用</div></div>
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-orange-400">${s.total_letters}</div><div class="text-xs text-gray-400 mt-1">信件模板</div></div>
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-yellow-500">${s.total_questions}</div><div class="text-xs text-gray-400 mt-1">总问题数</div></div>
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-blue-500">${s.total_answers}</div><div class="text-xs text-gray-400 mt-1">总回答数</div></div>
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-yellow-400">${s.pending_questions}</div><div class="text-xs text-gray-400 mt-1">待审核问题</div></div>
+        <div class="card p-5 text-center"><div class="text-3xl font-bold text-yellow-400">${s.pending_answers}</div><div class="text-xs text-gray-400 mt-1">待审核回答</div></div>
+    `;
+    let detailHtml = '';
+    if (s.popular_letter) {
+        detailHtml += `<p class="text-gray-600 mb-2">🏆 最受欢迎的信件：<strong>${s.popular_letter.title}</strong> — 已被打开 <strong>${s.popular_letter.count}</strong> 次</p>`;
+    } else {
+        detailHtml += `<p class="text-gray-400 mb-2">还没有兑换记录，卖出第一单吧～</p>`;
+    }
+    detailHtml += `<p class="text-gray-600">💭 问答统计：${s.approved_questions} 个问题在线，${s.answered_questions} 个已收到回答</p>`;
+    document.getElementById('statsDetail').innerHTML = detailHtml;
+}
+
+// ===== Utils =====
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板'));
+}
+
+function copyShipText(code) {
+    const text = `感谢购买！现发货：您的专属兑换码为：${code}，请访问 ${SITE_URL} 输入兑换码即可获取您的神秘信。祝您开心每一天！`;
+    navigator.clipboard.writeText(text).then(() => showToast('发货文案已复制'));
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Click modal overlay to close
+document.getElementById('letterModal').addEventListener('click', function(e) {
+    if (e.target === this) hideLetterModal();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>解忧信箱 - 专属你的温暖</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Noto Serif SC', serif;
+            background-color: #fdf6e3;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(255, 236, 179, 0.6) 0%, transparent 50%),
+                radial-gradient(circle at 80% 70%, rgba(255, 218, 185, 0.5) 0%, transparent 50%);
+            min-height: 100vh;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+
+        .envelope {
+            perspective: 1000px;
+            transition: all 0.8s ease;
+        }
+
+        .letter-content {
+            transform: translateY(30px);
+            opacity: 0;
+            transition: all 1s ease 0.3s;
+        }
+
+        .envelope.open .letter-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .paper-texture {
+            background-color: #fffef5;
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h100v100H0z' fill='%23fffef5'/%3E%3Cpath d='M0 10h100' stroke='%23e8e4d8' stroke-width='0.5'/%3E%3Cpath d='M0 30h100' stroke='%23e8e4d8' stroke-width='0.5'/%3E%3Cpath d='M0 50h100' stroke='%23e8e4d8' stroke-width='0.5'/%3E%3Cpath d='M0 70h100' stroke='%23e8e4d8' stroke-width='0.5'/%3E%3Cpath d='M0 90h100' stroke='%23e8e4d8' stroke-width='0.5'/%3E%3C/svg%3E");
+            border-left: 2px solid #eac8c8;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .btn-magic {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-magic:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(253, 160, 133, 0.4);
+        }
+        .btn-magic:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .bokeh {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4);
+            animation: float 6s infinite ease-in-out;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            50% { transform: translateX(8px); }
+            75% { transform: translateX(-4px); }
+        }
+
+        @keyframes loading-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading-dot {
+            animation: loading-pulse 1.4s infinite ease-in-out;
+        }
+        .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        .letter-body {
+            white-space: pre-line;
+        }
+
+        /* 问答区域样式 */
+        .question-card {
+            background: rgba(255, 240, 220, 0.6);
+            border: 1px dashed #f0c9a0;
+            border-radius: 1rem;
+        }
+
+        .answer-section textarea {
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #e8d8c8;
+            border-radius: 0.75rem;
+            resize: vertical;
+            font-family: 'Noto Serif SC', serif;
+        }
+        .answer-section textarea:focus {
+            outline: none;
+            border-color: #f6b88e;
+            box-shadow: 0 0 0 3px rgba(246, 184, 142, 0.15);
+        }
+
+        .privacy-badge {
+            background: rgba(76, 175, 80, 0.08);
+            border: 1px solid rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        /* 弹窗样式 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(4px);
+        }
+        .modal-box {
+            background: #fffef5;
+            border-radius: 1.5rem;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-box input[type=number] {
+            border: 1px solid #e8d8c8;
+            border-radius: 0.75rem;
+            padding: 10px 16px;
+            font-size: 1.1rem;
+            text-align: center;
+            outline: none;
+            font-family: 'Noto Serif SC', serif;
+        }
+        .modal-box input[type=number]:focus {
+            border-color: #f6b88e;
+            box-shadow: 0 0 0 3px rgba(246, 184, 142, 0.15);
+        }
+
+        /* 查询回答区域 */
+        .answer-result-card {
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid #e8d8c8;
+            border-radius: 1rem;
+        }
+
+        /* Toast */
+        .toast-msg {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            padding: 12px 24px;
+            border-radius: 9999px;
+            color: #fff;
+            font-weight: 600;
+            font-size: 0.9rem;
+            animation: toastIn 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        @keyframes toastIn {
+            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        /* 淡入动画 */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in-up {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center p-4">
+
+    <!-- 装饰光斑 -->
+    <div class="bokeh w-24 h-24 top-10 left-10 opacity-50" style="animation-delay: 0s;"></div>
+    <div class="bokeh w-16 h-16 bottom-20 right-20 opacity-40" style="animation-delay: 2s;"></div>
+
+    <!-- 主容器 -->
+    <div class="w-full max-w-md relative z-10">
+
+        <!-- 阶段一：输入兑换码 -->
+        <div id="inputSection" class="glass-card rounded-3xl p-8 text-center transition-all duration-500">
+            <div class="text-5xl mb-4">💌</div>
+            <h1 class="text-2xl font-bold text-gray-700 mb-2">解忧信箱</h1>
+            <p class="text-gray-500 mb-8 text-sm">输入你的专属兑换码，开启今日份的温暖</p>
+
+            <input
+                type="text"
+                id="codeInput"
+                placeholder="例如：XJ-888888"
+                onkeydown="if(event.key==='Enter') startRedeem()"
+                class="w-full px-6 py-3 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-300 text-center tracking-widest text-gray-700 bg-white/80"
+            >
+            <button id="redeemBtn" onclick="startRedeem()" class="btn-magic w-full mt-6 text-white font-bold py-3 rounded-full shadow-md">
+                开启解忧 ✨
+            </button>
+            <p id="errorMsg" class="text-red-400 text-xs mt-4 hidden"></p>
+
+            <!-- 查询回答入口 -->
+            <div class="mt-6 pt-4 border-t border-gray-100">
+                <button onclick="showQuerySection()" class="text-sm text-orange-400 hover:text-orange-600 transition flex items-center justify-center gap-1 mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    查看我收到的回答
+                </button>
+            </div>
+        </div>
+
+        <!-- 查询回答区域 -->
+        <div id="querySection" class="glass-card rounded-3xl p-8 text-center hidden transition-all duration-500">
+            <div class="text-3xl mb-4">📬</div>
+            <h2 class="text-lg font-bold text-gray-700 mb-2">查看我的回答</h2>
+            <p class="text-gray-400 text-sm mb-6">输入你的兑换码，查看别人给你的回答</p>
+
+            <input
+                type="text"
+                id="queryCodeInput"
+                placeholder="输入你的兑换码"
+                onkeydown="if(event.key==='Enter') queryAnswers()"
+                class="w-full px-6 py-3 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-yellow-300 text-center tracking-widest text-gray-700 bg-white/80"
+            >
+            <button onclick="queryAnswers()" class="btn-magic w-full mt-4 text-white font-bold py-3 rounded-full shadow-md">
+                查询回答 ✨
+            </button>
+            <button onclick="hideQuerySection()" class="w-full mt-3 text-gray-400 text-sm hover:text-gray-600 transition">
+                ← 返回
+            </button>
+        </div>
+
+        <!-- 查询结果 -->
+        <div id="queryResultSection" class="hidden space-y-4 mt-4">
+        </div>
+
+        <!-- 年龄弹窗 -->
+        <div id="ageModal" class="modal-overlay hidden">
+            <div class="modal-box text-center">
+                <div class="text-4xl mb-3">🌟</div>
+                <h2 class="text-lg font-bold text-gray-700 mb-2">认识一下你</h2>
+                <p class="text-gray-400 text-sm mb-6">请告诉我们你的年龄，这样别人能更好地回答你的问题</p>
+                <input
+                    type="number"
+                    id="ageInput"
+                    placeholder="你的年龄"
+                    min="1"
+                    max="150"
+                    onkeydown="if(event.key==='Enter') confirmAge()"
+                    class="w-32 text-center"
+                >
+                <p class="text-xs text-gray-300 mt-3 mb-6">年龄仅用于匹配回答者，不会泄露你的身份</p>
+                <button onclick="confirmAge()" class="btn-magic w-full text-white font-bold py-3 rounded-full shadow-md">
+                    确认 ✨
+                </button>
+            </div>
+        </div>
+
+        <!-- 阶段二：加载中（默认隐藏） -->
+        <div id="loadingSection" class="glass-card rounded-3xl p-12 text-center hidden transition-all duration-500">
+            <div class="text-4xl mb-4">✉️</div>
+            <p class="text-gray-600 font-medium">正在拆封你的来信</p>
+            <p class="text-gray-400 text-sm mt-1">
+                <span class="loading-dot">·</span>
+                <span class="loading-dot">·</span>
+                <span class="loading-dot">·</span>
+            </p>
+        </div>
+
+        <!-- 阶段三：展示结果（默认隐藏） -->
+        <div id="resultSection" class="hidden transition-all duration-500">
+            <div class="envelope" id="envelope">
+                <div class="text-center mb-4">
+                    <span class="text-sm text-gray-400 tracking-wider">—— 来自解忧杂货铺的信 ——</span>
+                </div>
+
+                <!-- 信纸区域 -->
+                <div id="letterPaper" class="letter-content paper-texture rounded-xl p-8">
+                    <h2 id="letterTitle" class="text-center text-gray-400 text-sm mb-4"></h2>
+                    <div id="messageText" class="text-gray-800 leading-relaxed text-lg letter-body">
+                    </div>
+                    <div class="mt-8 text-right">
+                        <p class="text-sm text-gray-500" id="signature"></p>
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="mt-8 flex flex-col gap-3 letter-content">
+                    <button onclick="copyText()" class="w-full bg-white/80 border border-gray-200 text-gray-600 font-medium py-3 rounded-full hover:bg-white transition flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                        复制文字
+                    </button>
+                    <button onclick="createPoster()" class="btn-magic w-full text-white font-bold py-3 rounded-full shadow-md flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        生成精美海报
+                    </button>
+                </div>
+
+                <!-- ===== 问答区域 ===== -->
+                <div id="qaSection" class="mt-8 letter-content">
+                    <!-- 分隔线 -->
+                    <div class="flex items-center gap-4 mb-6">
+                        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-orange-200 to-transparent"></div>
+                        <span class="text-xs text-orange-300 tracking-widest">解忧传递</span>
+                        <div class="flex-1 h-px bg-gradient-to-r from-transparent via-orange-200 to-transparent"></div>
+                    </div>
+
+                    <!-- 随机问题卡片 -->
+                    <div id="questionCard" class="question-card p-6 mb-6 hidden">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="text-lg">💭</span>
+                            <span class="text-sm text-orange-400 font-medium">有人留下了一个问题</span>
+                        </div>
+                        <p id="questionContent" class="text-gray-700 leading-relaxed text-base"></p>
+                        <input type="hidden" id="currentQuestionId">
+                        <!-- 隐私标识 -->
+                        <div class="mt-4 privacy-badge inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            匿名传递机制，您的信息加密处理，充分保护个人隐私
+                        </div>
+                    </div>
+
+                    <!-- 无问题时提示 -->
+                    <div id="noQuestionTip" class="text-center py-6 hidden">
+                        <div class="text-3xl mb-2">🌙</div>
+                        <p class="text-gray-400 text-sm">暂时没有待回答的问题</p>
+                        <p class="text-gray-300 text-xs mt-1">你仍然可以留下自己的问题</p>
+                    </div>
+
+                    <!-- 回答区域 -->
+                    <div id="answerForm" class="answer-section space-y-4 hidden">
+                        <div>
+                            <label class="text-sm text-gray-500 mb-2 block">✏️ 你的回答（选填）</label>
+                            <textarea id="answerInput" rows="4" maxlength="500" placeholder="写下你的回答，给对方一些温暖和力量..." class="w-full p-4 text-sm"></textarea>
+                            <div class="text-right text-xs text-gray-300 mt-1"><span id="answerCount">0</span>/500</div>
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-500 mb-2 block">💬 留下你的问题（选填）</label>
+                            <textarea id="newQuestionInput" rows="3" maxlength="200" placeholder="问一个问题，让下一个人来回答..." class="w-full p-4 text-sm"></textarea>
+                            <div class="text-right text-xs text-gray-300 mt-1"><span id="questionCount">0</span>/200</div>
+                        </div>
+                        <button id="submitAnswerBtn" onclick="submitAnswer()" class="btn-magic w-full text-white font-bold py-3 rounded-full shadow-md">
+                            传递温暖 💌
+                        </button>
+                        <button onclick="skipAnswer()" class="w-full text-gray-300 text-sm hover:text-gray-500 transition py-2">
+                            忽略，不想回答
+                        </button>
+                    </div>
+
+                    <!-- 提交成功提示 -->
+                    <div id="answerSuccess" class="text-center py-8 hidden fade-in-up">
+                        <div class="text-5xl mb-4">🕊️</div>
+                        <h3 class="text-lg font-bold text-gray-700 mb-2">你的回答已送达</h3>
+                        <p class="text-gray-300 text-xs mt-2">这是一次性的匿名传递，无法追问和修改</p>
+                    </div>
+                </div>
+
+                <!-- 返回按钮 -->
+                <div class="mt-6 letter-content">
+                    <button onclick="goBack()" class="w-full bg-transparent border border-gray-200 text-gray-400 font-medium py-3 rounded-full hover:text-gray-600 hover:border-gray-300 transition">
+                        再拆一封 💌
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast-msg hidden"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// 当前会话状态
+let currentCode = '';
+let currentProfile = null;
+
+function showSection(name) {
+    ['inputSection', 'loadingSection', 'resultSection', 'querySection', 'queryResultSection'].forEach(s => {
+        $(s).classList.toggle('hidden', s !== name);
+    });
+}
+
+function showToast(msg, color = '#48bb78') {
+    const t = $('toast');
+    t.textContent = msg;
+    t.style.background = color;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 2500);
+}
+
+// ===== 兑换流程 =====
+
+function startRedeem() {
+    const code = $('codeInput').value.trim().toUpperCase();
+    if (!code) {
+        showError('请输入兑换码');
+        return;
+    }
+    currentCode = code;
+    // 先预检查兑换码状态
+    preCheckCode(code);
+}
+
+async function preCheckCode(code) {
+    const btn = $('redeemBtn');
+    const errorMsg = $('errorMsg');
+    errorMsg.classList.add('hidden');
+    btn.disabled = true;
+    btn.innerHTML = '检查中... ✉️';
+
+    try {
+        const res = await fetch('/api/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, age: 0 })
+        });
+        const data = await res.json();
+
+        if (data.error === 'already_used') {
+            // 兑换码已使用，只提示，不跳转
+            showError('该兑换码已经使用过了哦～');
+            shakeInput();
+        } else if (data.error === '该兑换码已过期') {
+            showError('该兑换码已过期');
+            shakeInput();
+        } else if (!data.success && data.error === '兑换码无效，请检查后重试') {
+            showError('兑换码无效，请检查后重试');
+            shakeInput();
+        } else {
+            // 兑换码有效，弹出年龄输入框
+            $('ageModal').classList.remove('hidden');
+            $('ageInput').value = '';
+            setTimeout(() => $('ageInput').focus(), 300);
+        }
+    } catch (e) {
+        showError('网络连接失败，请检查网络后重试');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '开启解忧 ✨';
+    }
+}
+
+function confirmAge() {
+    const age = parseInt($('ageInput').value);
+    if (!age || age < 1 || age > 120) {
+        showToast('请输入有效的年龄（1-120）', '#f56565');
+        return;
+    }
+    $('ageModal').classList.add('hidden');
+    redeemCode(age);
+}
+
+async function redeemCode(age) {
+    const btn = $('redeemBtn');
+    const errorMsg = $('errorMsg');
+    errorMsg.classList.add('hidden');
+
+    // 进入加载状态
+    btn.disabled = true;
+    btn.innerHTML = '正在拆封... ✉️';
+    showSection('loadingSection');
+
+    try {
+        const res = await fetch('/api/redeem', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: currentCode, age })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            currentProfile = data.profile;
+            showResult(data.letter);
+            // 加载随机问题
+            loadRandomQuestion();
+        } else {
+            showSection('inputSection');
+            showError(data.error === 'already_used' ? '该兑换码已经使用过了哦～' : (data.error || '兑换码无效，请检查后重试'));
+            shakeInput();
+        }
+    } catch (e) {
+        showSection('inputSection');
+        showError('网络连接失败，请检查网络后重试');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '开启解忧 ✨';
+    }
+}
+
+function showError(msg) {
+    const el = $('errorMsg');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+
+function shakeInput() {
+    const input = $('codeInput');
+    input.style.animation = 'none';
+    input.offsetHeight;
+    input.style.animation = 'shake 0.5s';
+    input.focus();
+    input.select();
+}
+
+function showResult(letter) {
+    showSection('resultSection');
+
+    // 填充数据
+    $('letterTitle').textContent = letter.title || '';
+    $('letterTitle').classList.toggle('hidden', !letter.title);
+    $('messageText').textContent = letter.content;
+    $('signature').textContent = letter.signature || '—— 你的解忧人';
+
+    // 重置问答区域
+    $('questionCard').classList.add('hidden');
+    $('noQuestionTip').classList.add('hidden');
+    $('answerForm').classList.add('hidden');
+    $('answerSuccess').classList.add('hidden');
+
+    // 触发信封打开动画
+    const envelope = $('envelope');
+    envelope.classList.remove('open');
+    void envelope.offsetWidth;
+    envelope.classList.add('open');
+
+    // 滚动到信封
+    setTimeout(() => {
+        $('resultSection').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 200);
+}
+
+// ===== 问答流程 =====
+
+async function loadRandomQuestion() {
+    try {
+        const res = await fetch(`/api/question/random?code=${encodeURIComponent(currentCode)}`);
+        const data = await res.json();
+
+        if (data.success && data.question) {
+            const q = data.question;
+            $('currentQuestionId').value = q.id;
+            $('questionContent').textContent = q.content;
+            $('questionCard').classList.remove('hidden');
+            $('answerForm').classList.remove('hidden');
+            $('noQuestionTip').classList.add('hidden');
+        } else {
+            $('questionCard').classList.add('hidden');
+            $('answerForm').classList.remove('hidden');
+            $('noQuestionTip').classList.remove('hidden');
+        }
+    } catch (e) {
+        $('questionCard').classList.add('hidden');
+        $('answerForm').classList.remove('hidden');
+        $('noQuestionTip').classList.remove('hidden');
+    }
+}
+
+// 字数统计
+$('answerInput').addEventListener('input', function() {
+    $('answerCount').textContent = this.value.length;
+});
+$('newQuestionInput').addEventListener('input', function() {
+    $('questionCount').textContent = this.value.length;
+});
+
+async function submitAnswer() {
+    const answerContent = $('answerInput').value.trim();
+    const newQuestion = $('newQuestionInput').value.trim();
+    const questionId = parseInt($('currentQuestionId').value);
+
+    if (!answerContent && !newQuestion) {
+        showToast('请至少填写回答或留下一个问题', '#f56565');
+        return;
+    }
+
+    if (!questionId && answerContent) {
+        showToast('出了点问题，请刷新页面重试', '#f56565');
+        return;
+    }
+
+    const btn = $('submitAnswerBtn');
+    btn.disabled = true;
+    btn.innerHTML = '传递中... 🕊️';
+
+    try {
+        const body = {
+            code: currentCode,
+            question_id: questionId || 0,
+            answer_content: answerContent || ' ',
+            new_question: newQuestion || null,
+        };
+
+        const res = await fetch('/api/answer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            $('questionCard').classList.add('hidden');
+            $('answerForm').classList.add('hidden');
+            $('noQuestionTip').classList.add('hidden');
+            $('answerSuccess').classList.remove('hidden');
+            showToast(data.message);
+        } else {
+            showToast(data.error || '提交失败', '#f56565');
+        }
+    } catch (e) {
+        showToast('网络错误，请重试', '#f56565');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '传递温暖 💌';
+    }
+}
+
+function skipAnswer() {
+    $('questionCard').classList.add('hidden');
+    $('answerForm').classList.add('hidden');
+    $('noQuestionTip').classList.add('hidden');
+}
+
+// ===== 查询回答 =====
+
+function showQuerySection() {
+    $('inputSection').classList.add('hidden');
+    $('querySection').classList.remove('hidden');
+    $('queryResultSection').classList.add('hidden');
+    $('queryResultSection').innerHTML = '';
+    setTimeout(() => $('queryCodeInput').focus(), 300);
+}
+
+function hideQuerySection() {
+    $('querySection').classList.add('hidden');
+    $('queryResultSection').classList.add('hidden');
+    $('queryResultSection').innerHTML = '';
+    $('inputSection').classList.remove('hidden');
+}
+
+async function queryAnswers() {
+    const code = $('queryCodeInput').value.trim().toUpperCase();
+    if (!code) {
+        showToast('请输入兑换码', '#f56565');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/answers/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+            showToast('查询失败', '#f56565');
+            return;
+        }
+
+        const container = $('queryResultSection');
+        container.innerHTML = '';
+        container.classList.remove('hidden');
+
+        if (data.questions.length === 0) {
+            container.innerHTML = `
+                <div class="glass-card rounded-2xl p-8 text-center">
+                    <div class="text-3xl mb-3">🌙</div>
+                    <p class="text-gray-400 text-sm">你还没有提出过问题</p>
+                    <p class="text-gray-300 text-xs mt-2">兑换一封信后，留下你的问题，就能收到别人的回答啦</p>
+                </div>
+            `;
+            return;
+        }
+
+        // 显示问题和回答
+        data.questions.forEach((q, idx) => {
+            const hasAnswers = q.answers.length > 0;
+            let answersHtml = '';
+
+            if (hasAnswers) {
+                q.answers.forEach(a => {
+                    answersHtml += `
+                        <div class="mt-4 pt-4 border-t border-dashed border-orange-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-sm">✉️</span>
+                                <span class="text-xs text-orange-400 font-medium">来自 ${a.answerer_nickname} · ${a.answerer_age}岁的回答</span>
+                            </div>
+                            <p class="text-gray-700 text-sm leading-relaxed">${escapeHtml(a.content)}</p>
+                        </div>
+                    `;
+                });
+            } else {
+                answersHtml = `
+                    <div class="mt-4 pt-4 border-t border-dashed border-orange-100 text-center">
+                        <p class="text-gray-300 text-sm">还没有人回答，请耐心等待 🕊️</p>
+                    </div>
+                `;
+            }
+
+            container.innerHTML += `
+                <div class="answer-result-card p-6 fade-in-up" style="animation-delay: ${idx * 0.1}s">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg">💭</span>
+                        <span class="text-sm text-gray-500 font-medium">你的问题</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full ${q.question_status === 'answered' ? 'bg-green-50 text-green-500' : 'bg-yellow-50 text-yellow-500'}">${q.question_status === 'answered' ? '已收到回答' : '等待回答中'}</span>
+                    </div>
+                    <p class="text-gray-700 text-base leading-relaxed">${escapeHtml(q.question_content)}</p>
+                    ${answersHtml}
+                </div>
+            `;
+        });
+
+        // 滚动到结果
+        setTimeout(() => {
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 200);
+
+    } catch (e) {
+        showToast('网络错误，请重试', '#f56565');
+    }
+}
+
+// ===== 工具函数 =====
+
+function goBack() {
+    $('resultSection').classList.add('hidden');
+    $('envelope').classList.remove('open');
+    $('inputSection').classList.remove('hidden');
+    $('queryResultSection').classList.add('hidden');
+    $('codeInput').value = '';
+    $('errorMsg').classList.add('hidden');
+    $('answerInput').value = '';
+    $('newQuestionInput').value = '';
+    $('answerCount').textContent = '0';
+    $('questionCount').textContent = '0';
+    currentCode = '';
+    currentProfile = null;
+    setTimeout(() => $('codeInput').focus(), 400);
+}
+
+function copyText() {
+    const title = $('letterTitle').textContent;
+    const text = (title ? title + '\n\n' : '') + $('messageText').textContent + '\n' + $('signature').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('复制成功！快去发给那个特别的人吧！');
+    });
+}
+
+function createPoster() {
+    const paper = $('letterPaper');
+    paper.style.padding = '40px';
+
+    html2canvas(paper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#fffef5'
+    }).then(canvas => {
+        paper.style.padding = '';
+        const link = document.createElement('a');
+        link.download = '我的解忧信.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+</body>
+</html>
