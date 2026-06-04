@@ -1,5 +1,0 @@
-# 具体页面优先匹配，避免被 SPA catch-all 规则拦截
-/jieyou.html  /jieyou.html  200
-
-# 其他所有路径回退到首页（SPA 模式）
-/*  /index.html  200

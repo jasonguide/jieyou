@@ -134,6 +134,9 @@ python main.py                    # 启动服务
 
 ## 部署说明
 
+注意：Cloudflare Pages 只能部署静态文件，不会运行FastAPI这些，所以这个项目不能完全托管到CF。
+
+
 ### 1. 上传项目到服务器
 
 ```bash
