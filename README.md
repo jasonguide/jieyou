@@ -168,7 +168,7 @@ python3 seed.py
 创建服务文件：
 
 ```bash
-sudo nano /etc/systemd/system/jieyoupu.service
+sudo vim /etc/systemd/system/jieyoupu.service
 ```
 
 写入以下内容：
@@ -210,12 +210,12 @@ sudo apt install nginx -y
 sudo nano /etc/nginx/sites-available/jieyoupu
 ```
 
-写入以下内容（将 `jieyouci.com` 替换为你的域名）：
+写入以下内容（将 `jy.zoutao.com` 替换为你的域名）：
 
 ```nginx
 server {
     listen 80;
-    server_name jieyouci.com www.jieyouci.com;
+    server_name jy.zoutao.com www.jy.zoutao.com;
 
     location / {
         proxy_pass http://127.0.0.1:8000;
